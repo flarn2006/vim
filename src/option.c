@@ -8679,6 +8679,18 @@ set_bool_option(
 	    foldUpdateAll(curwin);
 # endif
     }
+
+    /* 'diffref' */
+    else if ((int *)varp == &curwin->w_p_dref)
+    {
+	/* Unset diffref option on previous window if there is one. */
+	win_T	*wp;
+	for (wp = firstwin; wp != NULL; wp = wp->w_next)
+	    if (wp->w_p_dref && wp != curwin) {
+		wp->w_p_dref = FALSE;
+		break;
+	    }
+    }
 #endif
 
 #ifdef HAVE_INPUT_METHOD
