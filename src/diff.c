@@ -78,6 +78,7 @@ static int diff_check_sanity(tabpage_T *tp, diff_T *dp);
 static void diff_redraw(int dofold);
 static int check_external_diff(diffio_T *diffio);
 static int diff_file(diffio_T *diffio);
+static int diff_findmaster(void);
 static int diff_ismaster(int idx);
 static int diff_equal_entry(diff_T *dp, int idx1, int idx2);
 static int diff_cmp(char_u *s1, char_u *s2);
@@ -571,10 +572,8 @@ diff_check_unchanged(tabpage_T *tp, diff_T *dp)
 
     /* Find the first buffers, use it as the original, compare the other
      * buffer lines against this one. */
-    for (i_org = 0; i_org < DB_COUNT; ++i_org)
-	if (tp->tp_diffbuf[i_org] != NULL)
-	    break;
-    if (i_org == DB_COUNT)	/* safety check */
+    i_org = diff_findmaster();
+    if (i_org == -1)	/* safety check */
 	return;
 
     if (diff_check_sanity(tp, dp) == FAIL)
@@ -922,10 +921,8 @@ ex_diffupdate(exarg_T *eap)	// "eap" can be NULL
     curtab->tp_diff_invalid = FALSE;
 
     // Use the first buffer as the original text.
-    for (idx_orig = 0; idx_orig < DB_COUNT; ++idx_orig)
-	if (curtab->tp_diffbuf[idx_orig] != NULL)
-	    break;
-    if (idx_orig == DB_COUNT)
+    idx_orig = diff_findmaster();
+    if (idx_orig == -1)
 	goto theend;
 
     // Only need to do something when there is another buffer.
@@ -1850,6 +1847,31 @@ ex_diffmaster(exarg_T *eap)
     else if (!curwin->w_p_diff)
 	diff_win_options(curwin, TRUE);
     diff_redraw(TRUE);
+}
+
+/*
+ * Get the diffbuf index of the current master buffer.
+ * Simply returns the first one if there isn't a master.
+ */
+    int
+diff_findmaster()
+{
+    win_T	*wp;
+    int		idx = -1;
+    int		i;
+    
+    for (wp = firstwin; wp != NULL; wp = wp->w_next)
+	if (wp->w_p_dref) {
+	    idx = diff_buf_idx(wp->w_buffer);
+	    break;
+	}
+    if (idx == -1)
+	for (i = 0; i < DB_COUNT; ++i)
+	    if (curtab->tp_diffbuf[i] != NULL) {
+		idx = i;
+		break;
+	    }
+    return idx;
 }
 
 /*
